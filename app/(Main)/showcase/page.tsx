@@ -36,7 +36,13 @@ export default function ShowcasePage() {
         // Fetch the discover index with caching
         const indexData = await fetchDiscoveryCachedIndexActionNoToken();
 
-        console.log('✅ Discover index received:', Object.keys(indexData));
+        console.log('✅ Discover index received, type:', typeof indexData);
+        console.log('✅ Index keys:', indexData ? Object.keys(indexData).slice(0, 10) : 'no data');
+
+        if (!indexData || typeof indexData !== 'object') {
+          setError('Invalid data format received');
+          return;
+        }
 
         // Transform index data into categories
         const discoverCategories: DiscoverCategory[] = [];
@@ -53,28 +59,47 @@ export default function ShowcasePage() {
 
         // Process each type in the index
         Object.entries(indexData).forEach(([key, data]) => {
-          if (key === '_meta' || !Array.isArray(data)) return;
+          // Skip metadata and empty keys
+          if (key.startsWith('_') || !data) return;
+
+          // Only process arrays
+          if (!Array.isArray(data)) {
+            console.warn(`⚠️ Skipping ${key}: not an array`);
+            return;
+          }
+
+          // Only process non-empty arrays
+          if (data.length === 0) {
+            console.warn(`⚠️ Skipping ${key}: empty array`);
+            return;
+          }
 
           const config = categoryConfig[key] || {
             displayName: key.replace('category_', 'Category ').replace(/_/g, ' '),
             color: 'from-gray-500 to-gray-700'
           };
 
-          if (Array.isArray(data) && data.length > 0) {
-            discoverCategories.push({
-              key,
-              displayName: config.displayName,
-              color: config.color,
-              items: data as TrackItem[]
-            });
-          }
+          discoverCategories.push({
+            key,
+            displayName: config.displayName,
+            color: config.color,
+            items: data as TrackItem[]
+          });
+
+          console.log(`✅ Added category ${key}: ${data.length} items`);
         });
 
+        if (discoverCategories.length === 0) {
+          setError('No categories found in discover data');
+          return;
+        }
+
         setCategories(discoverCategories);
-        console.log(`✅ Loaded ${discoverCategories.length} categories`);
-      } catch (err) {
+        console.log(`✅ Successfully loaded ${discoverCategories.length} categories`);
+      } catch (err: any) {
         console.error('❌ Error loading discover index:', err);
-        setError('Failed to load showcase data');
+        console.error('❌ Error details:', err?.message || err);
+        setError(`Failed to load showcase data: ${err?.message || 'Unknown error'}`);
       } finally {
         setLoading(false);
       }
