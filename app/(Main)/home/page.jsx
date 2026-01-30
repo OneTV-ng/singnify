@@ -1,126 +1,59 @@
 "use client";
 import React, { useState, useRef, useEffect } from 'react';
 
-
-import { Play, Heart, Share2, ChevronLeft, ChevronRight,Pause, Volume2, VolumeX, Search, Menu, User, Home, TrendingUp, Music, Video, List } from 'lucide-react';
+import { Play, Heart, Share2, ChevronLeft, ChevronRight, Pause, Volume2, VolumeX, Search, Menu, User, Home, TrendingUp, Music, Video, List, Loader2 } from 'lucide-react';
 import { usePlayer } from '@/app/context/PlayerContext';
-//import { useTheme } from '@/app/context/ThemeContext';
-//import { useAuth } from '@/app/context/AuthContext';
 import { Track, PlayerActionType } from '@/app/lib/types';
-//
-// import { NTrack, Track } from '@/app/lib/types';
-import {getBigData} from "@/app/lib/bigData";
-
+import { fetchDiscoveryCachedActionNoToken } from '@/services/singnifyApi.actions';
 
 /**
- * Converts an object with numeric string keys (e.g., "0", "1", "2")
- * and an optional non-numeric key (e.g., "id") into an array of its
- * nested object values.
- *
- * This function is useful when you have data structured like an array
- * but stored in an object, and you want to access the items as a proper array.
- *
- * @param {Object} sourceObject The input object to convert.
- * @returns {Array<Object>} An array containing the nested objects from the input.
+ * Convert API track data to Track format for player
  */
-function object2Array(sourceObject) {
-  // Check if the input is actually an object and not null
-  if (typeof sourceObject !== 'object' || sourceObject === null) {
-    console.error("Input must be a non-null object.");
-    return []; // Return an empty array for invalid input
-  }
-
-  // Use Object.values() to get an array of all the values in the object.
-  // This will include the music track objects and potentially the "id: 'TIDAL'" string.
-  const allValues = Object.values(sourceObject);
-
-  // Filter the values to ensure we only keep actual objects (your music tracks).
-  // This handles cases where there might be non-object properties like the "id": "TIDAL" string.
-  const resultArray = allValues.filter(value =>
-    typeof value === 'object' && value !== null && !Array.isArray(value)
-  );
-
-  return resultArray;
-}
-
 const convertToTracks = (data) => {
+  if (!Array.isArray(data)) return [];
   return data.map(item => ({
     id: item.id,
     track_name: item.track_name,
     artist: {
-      id: item.id, // Assuming the artist has the same ID as the track
-      name: item.label,
+      id: item.id,
+      name: item.label || item.artist_name || 'Unknown Artist',
     },
     url: item.audio,
-    genre: item.genre,
-    info: item.actor, // Assuming this is the artist's info 
-    duration: item.duration, // Keeping as a string
-    image: item.image,
-    plays: item.no_plays,
-    releaseDate: '', // No release date in raw data, can set as empty or use current date
-    isLiked: false, // Default to false, or set based on your app's logic
-    label: item.label,
+    genre: item.genre || '',
+    duration: item.duration || '0:00',
+    image: item.image || item.thumb_image || '/default-album.png',
+    plays: item.no_plays || 0,
+    releaseDate: '',
+    isLiked: false,
+    label: item.label || '',
     audio: item.audio,
   }));
 };
 
-
-
+/**
+ * Transform API track to track object
+ */
 const onToTrack = (item) => {
+  if (!item) return null;
   return {
     ...item,
     id: item.id,
     track_name: item.track_name,
     artist: {
-      id: item.id, // Assuming the artist has the same ID as the track
-      name: item.label,
+      id: item.id,
+      name: item.label || item.artist_name || 'Unknown Artist',
     },
     url: item.audio,
-    genre: item.genre,
-    info: item.actor, // Assuming this is the artist's info 
-    duration: item.duration, // Keeping as a string
-    image: item.image,
-    plays: item.no_plays,
-    releaseDate: '', // No release date in raw data, can set as empty or use current date
-    isLiked: false, // Default to false, or set based on your app's logic
-    label: item.label,
+    genre: item.genre || '',
+    duration: item.duration || '0:00',
+    image: item.image || item.thumb_image || '/default-album.png',
+    plays: item.no_plays || 0,
+    releaseDate: '',
+    isLiked: false,
+    label: item.label || '',
     audio: item.audio,
   };
 };
-
-
-
-function transformMusicArray(originalArray) {
-  return originalArray.map(item => ({
-    id: item.id,
-    title: item.title,
-    description:cleanString(item.description),
-    middle: item.middle,
-    artist: item.title, // Assuming artist is the same as title
-    image: item.image,
-    thumb_image: item.thumb_image
-  }));
-}
-
-
-
-
-function cleanString(str) {
-  // 1. Check for null or undefined input
-  if (str === null || str === undefined) {
-    return ""; // Returns an empty string for null/undefined input
-  }
-
-  // 2. Ensure the input is a string.
-  // If `str` is already an empty string (""), String(str) will still result in "".
-  const inputString = String(str);
-
-  // If inputString is "" at this point, the replace operation on an empty string
-  // will also result in an empty string.
-  const cleanedStr = inputString.replace(/[^a-zA-Z0-9 ]|\n|\r/g, '');
-
-  return cleanedStr;
-}
 
 
 
@@ -138,27 +71,43 @@ const MusicApp = () => {
   const [currentTrack, setCurrentTrack] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // Initialize big data on component mount
+  // Fetch fresh discover data from server on component mount
   useEffect(() => {
-    const initializeData = async () => {
+    const loadDiscoverData = async () => {
       try {
-        const musicData = await getBigData('result.2');
-        const introductionsData = await getBigData('introductions');
+        setLoading(true);
+        console.log('📡 Loading discover data from server...');
 
-        // Guard against undefined data
-        const transformedNewData = introductionsData ? transformMusicArray(introductionsData) : [];
-        const transformedN2Data = musicData ? transformMusicArray(musicData) : [];
+        // Fetch fresh discover data with caching
+        const discoverData = await fetchDiscoveryCachedActionNoToken();
 
-        setNewData(transformedNewData);
-        setN2Data(transformedN2Data);
+        console.log('✅ Discover data received:', discoverData);
 
-        console.log("Initialized data:", { newData: transformedNewData, n2Data: transformedN2Data });
+        // Extract featured picks (introductions)
+        const featuredPicks = Array.isArray(discoverData?.introductions) ? discoverData.introductions : [];
+
+        // Extract trending tracks from result.1 (or first category)
+        const trendingTracks = discoverData?.result ?
+          Object.values(discoverData.result).flat().slice(0, 20) : [];
+
+        setNewData(featuredPicks.slice(0, 10)); // Featured picks
+        setN2Data(trendingTracks); // Trending/featured tracks
+
+        console.log('✅ Discover data initialized:', {
+          featuredPicks: featuredPicks.length,
+          trendingTracks: trendingTracks.length
+        });
       } catch (error) {
-        console.error('Error initializing big data:', error);
+        console.error('❌ Error loading discover data:', error);
+        // Set to empty arrays on error
+        setNewData([]);
+        setN2Data([]);
+      } finally {
+        setLoading(false);
       }
     };
 
-    initializeData();
+    loadDiscoverData();
   }, []);
 
   useEffect(() => {
