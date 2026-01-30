@@ -1,0 +1,216 @@
+'use client'; // This is a Client Component
+
+import { useFormState, useFormStatus } from 'react-dom';
+import { uploadMusic } from '@/app/lib/serverActions';
+import { useEffect, useRef } from 'react';
+import { toast } from 'react-hot-toast'; // For better notifications
+import {Countries} from '@/app/lib/utilities'; // We'll create this helper
+
+const initialState = {
+  message: '',
+  errors: {},
+};
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      aria-disabled={pending}
+      className="btn-primary w-full mt-6"
+      style={{
+        backgroundColor: 'var(--primary-color)', // Use CSS variable
+        color: 'white',
+        cursor: pending ? 'not-allowed' : 'pointer',
+      }}
+      disabled={pending}
+    >
+      {pending ? 'Uploading...' : 'Upload Music'}
+    </button>
+  );
+}
+
+export default function MusicUploadPage() {
+  const [state, formAction] = useFormState(uploadMusic, initialState);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (state.message && Object.keys(state.errors).length === 0) {
+      toast.success('Music uploaded successfully!');
+      formRef.current?.reset(); // Reset form on success
+    } else if (state.message && Object.keys(state.errors).length > 0) {
+      Object.values(state.errors).flat().forEach((error) => {
+        toast.error(error as string);
+      });
+    }
+  }, [state]);
+
+  return (
+    <div className="max-w-3xl mx-auto bg-gray-900 p-8 rounded-lg shadow-2xl border border-gray-800">
+      <h1 className="text-4xl font-extrabold text-center text-[var(--primary-color)] mb-8">Upload Your Music</h1>
+      <p className="text-center text-gray-400 mb-8">Share your art with the world. Fill in the details below to get started.</p>
+
+      <form ref={formRef} action={formAction} className="space-y-6">
+        {/* General Form Fields */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label htmlFor="name" className="block text-gray-300 text-sm font-bold mb-2">
+              Real Name (Full Name)
+            </label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              className="input-field w-full"
+              placeholder="John Doe"
+            />
+            {state.errors?.name && (
+              <p className="text-red-500 text-xs italic mt-1">{state.errors.name}</p>
+            )}
+          </div>
+          <div>
+            <label htmlFor="artistName" className="block text-gray-300 text-sm font-bold mb-2">
+              Artist Name
+            </label>
+            <input
+              type="text"
+              id="artistName"
+              name="artistName"
+              className="input-field w-full"
+              placeholder="Your Artist Name"
+            />
+            {state.errors?.artistName && (
+              <p className="text-red-500 text-xs italic mt-1">{state.errors.artistName}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label htmlFor="emailAddress" className="block text-gray-300 text-sm font-bold mb-2">
+              Email Address
+            </label>
+            <input
+              type="email"
+              id="emailAddress"
+              name="emailAddress"
+              className="input-field w-full"
+              placeholder="you@example.com"
+              defaultValue="manny@1tv.ng" // From old project
+            />
+            {state.errors?.emailAddress && (
+              <p className="text-red-500 text-xs italic mt-1">{state.errors.emailAddress}</p>
+            )}
+          </div>
+          <div>
+            <label htmlFor="phoneNumber" className="block text-gray-300 text-sm font-bold mb-2">
+              Phone Number (Optional)
+            </label>
+            <input
+              type="tel"
+              id="phoneNumber"
+              name="phoneNumber"
+              className="input-field w-full"
+              placeholder="+2348012345678"
+            />
+            {state.errors?.phoneNumber && (
+              <p className="text-red-500 text-xs italic mt-1">{state.errors.phoneNumber}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label htmlFor="gender" className="block text-gray-300 text-sm font-bold mb-2">
+              Gender
+            </label>
+            <select
+              id="gender"
+              name="gender"
+              className="input-field w-full cursor-pointer"
+            >
+              <option value="">- Select -</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+            {state.errors?.gender && (
+              <p className="text-red-500 text-xs italic mt-1">{state.errors.gender}</p>
+            )}
+          </div>
+          <div>
+            <label htmlFor="country" className="block text-gray-300 text-sm font-bold mb-2">
+              Country
+            </label>
+            <select
+              id="country"
+              name="country"
+              className="input-field w-full cursor-pointer"
+            >
+              <option value="">- Select -</option>
+              {Countries.map((country) => (
+                <option key={country} value={country}>
+                  {country}
+                </option>
+              ))}
+            </select>
+            {state.errors?.country && (
+              <p className="text-red-500 text-xs italic mt-1">{state.errors.country}</p>
+            )}
+          </div>
+        </div>
+
+        {/* File Uploads */}
+        <div className="space-y-4 pt-4 border-t border-gray-700 mt-6">
+          <div>
+            <label htmlFor="audioFile" className="block text-gray-300 text-sm font-bold mb-2">
+              Audio File (MP3, WAV, etc.)
+            </label>
+            <input
+              type="file"
+              id="audioFile"
+              name="audioFile"
+              accept="audio/*"
+              className="input-field w-full file:mr-4 file:py-2 file:px-4
+              file:rounded-full file:border-0 file:text-sm file:font-semibold
+              file:bg-[var(--secondary-color)] file:text-white hover:file:bg-opacity-80
+              transition duration-300 cursor-pointer"
+            />
+            {state.errors?.audioFile && (
+              <p className="text-red-500 text-xs italic mt-1">{state.errors.audioFile}</p>
+            )}
+          </div>
+
+          <div>
+            <label htmlFor="coverArt" className="block text-gray-300 text-sm font-bold mb-2">
+              Cover Art (Image File)
+            </label>
+            <input
+              type="file"
+              id="coverArt"
+              name="coverArt"
+              accept="image/*"
+              className="input-field w-full file:mr-4 file:py-2 file:px-4
+              file:rounded-full file:border-0 file:text-sm file:font-semibold
+              file:bg-[var(--secondary-color)] file:text-white hover:file:bg-opacity-80
+              transition duration-300 cursor-pointer"
+            />
+            {state.errors?.coverArt && (
+              <p className="text-red-500 text-xs italic mt-1">{state.errors.coverArt}</p>
+            )}
+          </div>
+        </div>
+
+        {/* General Error Message */}
+        {state.errors?.general && (
+          <p className="text-red-500 text-center text-sm italic mt-4">
+            {state.errors.general}
+          </p>
+        )}
+
+        <SubmitButton />
+      </form>
+    </div>
+  );
+}

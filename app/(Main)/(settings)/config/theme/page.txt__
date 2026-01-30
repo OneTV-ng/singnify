@@ -1,0 +1,71 @@
+// app/theme-settings/page.tsx
+"use client";
+
+import { useTheme, themes, Theme } from "@/app/context/ThemeContext";
+import { useState } from "react";
+
+export default function ThemeSettings() {
+  const { currentTheme, setTheme } = useTheme();
+  const [customTheme, setCustomTheme] = useState<Partial<Theme>>({});
+
+  const applyTheme = (theme: Theme) => {
+    setTheme(theme);
+  };
+
+  const handleCustomThemeChange = (key: keyof Theme, value: string | boolean) => {
+    setCustomTheme({ ...customTheme, [key]: value });
+  };
+
+  const saveCustomTheme = () => {
+    if (customTheme.id && customTheme.name) {
+      setTheme(customTheme as Theme);
+    } else {
+      alert("Please provide an ID and Name for the custom theme.");
+    }
+  };
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Theme Settings</h1>
+
+      <h2 className="text-lg font-semibold mb-2">Predefined Themes</h2>
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        {themes.map((theme) => (
+          <button
+            key={theme.id}
+            onClick={() => applyTheme(theme)}
+            className={`p-4 rounded-md ${theme.componentShadow}`}
+            style={{
+              backgroundColor: theme.primary,
+              color: theme.foreground,
+            }}
+          >
+            {theme.name}
+          </button>
+        ))}
+      </div>
+
+      <h2 className="text-lg font-semibold mb-2">Create Custom Theme</h2>
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        {Object.keys(themes[0]).map((key) => {
+          if (key === "id" || key === "name" || key === "dark") {
+            return (
+              <div key={key}>
+                <label className="block font-medium">{key}</label>
+                <input
+                  type="text"
+                  className="p-2 border rounded"
+                  onChange={(e) => handleCustomThemeChange(key as keyof Theme, e.target.value)}
+                />
+              </div>
+            );
+          }
+          return null;
+        })}
+        <button onClick={saveCustomTheme} className="bg-blue-500 text-white p-2 rounded">
+          Save Theme
+        </button>
+      </div>
+    </div>
+  );
+}

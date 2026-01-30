@@ -1,0 +1,297 @@
+import React, { useRef, useEffect, useState } from 'react';
+import { 
+  Play, Pause, SkipForward, SkipBack, 
+  Shuffle, Repeat, Volume2, VolumeX, Loader 
+} from 'lucide-react';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import { usePlayer } from '@/app/context/PlayerContext';
+
+const Player = () => {
+  const { state, dispatch } = usePlayer();
+  const [isLoading, setIsLoading] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
+
+  const progress = duration ? (currentTime / duration) * 100 : 0;
+
+  useEffect(() => {
+    if (audioRef.current) {
+      const audio = audioRef.current;
+
+      const handleTimeUpdate = () => {
+        if (!isDragging) {
+          setCurrentTime(audio.currentTime);
+        }
+      };
+
+      const handleLoadedMetadata = () => {
+        setDuration(audio.duration);
+        setIsLoading(false);
+      };
+
+      const handlePlay = () => {
+        dispatch({ type: 'PLAY' });
+        setIsLoading(false);
+      };
+
+      const handlePause = () => {
+        dispatch({ type: 'TOGGLE_PLAY' });
+      };
+
+      const handleEnded = () => {
+        dispatch({ type: 'NEXT_TRACK' });
+      };
+
+      audio.addEventListener('timeupdate', handleTimeUpdate);
+      audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.addEventListener('play', handlePlay);
+      audio.addEventListener('pause', handlePause);
+      audio.addEventListener('ended', handleEnded);
+
+      return () => {
+        audio.removeEventListener('timeupdate', handleTimeUpdate);
+        audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        audio.removeEventListener('play', handlePlay);
+        audio.removeEventListener('pause', handlePause);
+        audio.removeEventListener('ended', handleEnded);
+      };
+    }
+  }, [dispatch, isDragging]);
+
+  const handlePlayPause = async () => {
+    if (!audioRef.current) return;
+
+    if (state.isPlaying) {
+      audioRef.current.pause();
+    } else {
+      setIsLoading(true);
+      try {
+        await audioRef.current.play();
+      } catch (error) {
+        console.error('Playback failed:', error);
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!audioRef.current || !progressRef.current) return;
+    
+    const rect = progressRef.current.getBoundingClientRect();
+    const clickPosition = (e.clientX - rect.left) / rect.width;
+    const newTime = clickPosition * duration;
+    
+    audioRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
+  };
+
+  const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!audioRef.current) return;
+    
+    const newTime = (parseFloat(e.target.value) / 100) * duration;
+    setCurrentTime(newTime);
+    
+    if (!isDragging) {
+      audioRef.current.currentTime = newTime;
+    }
+  };
+
+  const handleProgressMouseDown = () => {
+    setIsDragging(true);
+  };
+
+  const handleProgressMouseUp = () => {
+    if (!audioRef.current) return;
+    
+    setIsDragging(false);
+    audioRef.current.currentTime = currentTime;
+  };
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVolume = parseFloat(e.target.value);
+    dispatch({ type: 'SET_VOLUME', payload: newVolume });
+    if (audioRef.current) {
+      audioRef.current.volume = newVolume;
+    }
+  };
+
+  const toggleMute = () => {
+    const newVolume = state.volume === 0 ? 1 : 0;
+    dispatch({ type: 'SET_VOLUME', payload: newVolume });
+    if (audioRef.current) {
+      audioRef.current.volume = newVolume;
+    }
+  };
+
+  const formatTime = (time: number): string => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  if (!state.currentTrack) {
+    return null;
+  }
+
+  return (
+    <div className="
+    fixed 
+    bottom-0 
+    left-0 right-0 
+    h-24 bg-surface/80
+     backdrop-blur-md 
+   
+     z-30 
+     border-secondary/20 
+     px-4">
+      <audio 
+        ref={audioRef}
+        src={state.currentTrack.url}
+        onLoadStart={() => setIsLoading(true)}
+      />
+      <div className="max-w-screen-2xl mx-auto h-full flex items-center justify-between">
+        {/* Track Info */}
+        <div className="flex items-center space-x-4 w-1/4">
+          <img
+            src={state.currentTrack.image}
+            alt={state.currentTrack.track_name}
+            className="h-14 w-14 rounded-md"
+          />
+          <div>
+            <h4 className="font-medium">{state.currentTrack.track_name}</h4>
+            <p className="text-sm text-secondary">{state.currentTrack.artist?.name}</p>
+          </div>
+        </div>
+
+        {/* Player Controls */}
+        <div className="flex flex-col items-center w-2/4">
+          <div className="flex items-center space-x-6">
+            <button
+              onClick={() => dispatch({ type: 'TOGGLE_SHUFFLE' })}
+              className={`p-2 rounded-full hover:bg-secondary/10 ${state.isShuffle ? 'text-primary' : ''}`}
+            >
+              <Shuffle className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => dispatch({ type: 'PREVIOUS_TRACK' })}
+              className="p-2 rounded-full hover:bg-secondary/10"
+            >
+              <SkipBack className="h-5 w-5" />
+            </button>
+            <button
+              onClick={handlePlayPause}
+              className="p-3 rounded-full bg-purple-900 text-white hover:bg-opacity-80 relative"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader className="h-6 w-6 animate-spin" />
+              ) : state.isPlaying ? (
+                <Pause className="h-6 w-6" />
+              ) : (
+                <Play className="h-6 w-6" />
+              )}
+            </button>
+            <button
+              onClick={() => dispatch({ type: 'NEXT_TRACK' })}
+              className="p-2 rounded-full hover:bg-secondary/10"
+            >
+              <SkipForward className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() =>
+                dispatch({
+                  type: 'SET_REPEAT_MODE',
+                  payload: state.repeatMode === 'off' ? 'all' : state.repeatMode === 'all' ? 'one' : 'off',
+                })
+              }
+              className={`p-2 rounded-full hover:bg-secondary/10 ${state.repeatMode !== 'off' ? 'text-primary' : ''}`}
+            >
+              <Repeat className="h-5 w-5" />
+            </button>
+
+            <Select
+              value={String(state.playbackSpeed)}
+              onValueChange={(value) =>
+                dispatch({ type: 'SET_PLAYBACK_SPEED', payload: parseFloat(value) as 1 | 1.5 | 2 })
+              }
+            >
+              <SelectTrigger className="w-20">
+                <SelectValue placeholder="Speed" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">1x</SelectItem>
+                <SelectItem value="1.5">1.5x</SelectItem>
+                <SelectItem value="2">2x</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="w-full mt-2 px-4 flex items-center space-x-2">
+            <span className="text-xs text-secondary font-mono">{formatTime(currentTime)}</span>
+            <div className="flex-1 relative group" ref={progressRef} onClick={handleProgressBarClick}>
+              <div 
+                className="absolute top-1/2 -translate-y-1/2 left-0 h-1 bg-purple-900 rounded-full transition-all"
+                style={{ width: `${progress}%` }} 
+              />
+              <div className="w-full h-1 bg-secondary/20 rounded-full" />
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={progress}
+                onChange={handleProgressChange}
+                onMouseDown={handleProgressMouseDown}
+                onMouseUp={handleProgressMouseUp}
+                className="absolute inset-0 w-full opacity-0 cursor-pointer"
+              />
+              <div 
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 bg-purple-900 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ left: `${progress}%` }}
+              />
+            </div>
+            <span className="text-xs text-secondary font-mono">{formatTime(duration)}</span>
+          </div>
+        </div>
+
+        {/* Volume Controls */}
+        <div className="flex items-center space-x-4 w-1/4 justify-end">
+          <button onClick={toggleMute} className="p-2 rounded-full hover:bg-secondary/10">
+            {state.volume === 0 ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+          </button>
+          <div className="w-32 group relative">
+            <div 
+              className="absolute top-1/2 -translate-y-1/2 left-0 h-1 bg-purple-900 rounded-full transition-all"
+              style={{ width: `${state.volume * 100}%` }} 
+            />
+            <div className="w-full h-1 bg-secondary/20 rounded-full" />
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={state.volume}
+              onChange={handleVolumeChange}
+              className="absolute inset-0 w-full opacity-0 cursor-pointer"
+            />
+            <div 
+              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 bg-purple-900 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ left: `${state.volume * 100}%` }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Player;

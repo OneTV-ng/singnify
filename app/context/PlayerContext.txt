@@ -1,0 +1,253 @@
+import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
+import { Track, PlayerActionType, PlayerStateType } from '@/app/lib/types';
+
+const PlayerContext = createContext<{
+  state: PlayerStateType;
+  dispatch: React.Dispatch<PlayerActionType>;
+} | null>(null);
+
+const getRandomIndex = (max: number, exclude: number): number => {
+  const random = Math.floor(Math.random() * (max - 1));
+  return random >= exclude ? random + 1 : random;
+};
+
+const playerReducer = (state: PlayerStateType, action: PlayerActionType): PlayerStateType => {
+  switch (action.type) {
+    case 'PLAY':
+      return { ...state, isPlaying: true, error: null };
+
+    case 'SET_TRACK': {
+      return {
+        ...state,
+        currentTrack: action.payload,
+        isPlaying: true,
+        loading: true,
+        error: null,
+        currentTime: 0,
+        history: state.currentTrack
+          ? [...state.history, state.currentTrack]
+          : state.history,
+        currentIndex: state.queue.findIndex(
+          (track) => track.id === action.payload.id
+        ),
+      };
+    }
+
+    case 'TOGGLE_PLAY':
+      return {
+        ...state,
+        isPlaying: !state.isPlaying,
+        error: null,
+      };
+
+    case 'SET_LOADING':
+      return { ...state, loading: action.payload };
+
+    case 'SET_ERROR':
+      return {
+        ...state,
+        error: action.payload,
+        loading: false,
+        isPlaying: false,
+      };
+
+    case 'UPDATE_TIME':
+      return { ...state, currentTime: action.payload };
+       case 'TOGGLE_FULLSCREEN':
+      return {
+        ...state,
+        isFullScreen: action.payload !== undefined 
+          ? action.payload 
+          : !state.isFullScreen
+      };
+
+    case 'TOGGLE_SHUFFLE':
+      if (!state.isShuffle) {
+        const currentTrack = state.queue[state.currentIndex];
+        const remainingTracks = state.queue.slice(state.currentIndex + 1);
+        const shuffledTracks = remainingTracks.sort(() => Math.random() - 0.5);
+        const newQueue = [
+          ...state.queue.slice(0, state.currentIndex + 1),
+          ...shuffledTracks,
+        ];
+        return { ...state, isShuffle: true, queue: newQueue };
+      }
+      return { ...state, isShuffle: false };
+
+    case 'SET_VOLUME':
+      return { ...state, volume: Math.max(0, Math.min(1, action.payload)) };
+
+    case 'LOAD_PLAYLIST':
+      return { ...state, queue: action.payload };
+
+    case 'SET_PLAYBACK_SPEED':
+      return { ...state, playbackSpeed: action.payload };
+
+    case 'NEXT_TRACK': {
+      if (state.queue.length === 0) return state;
+
+      let nextIndex: number;
+      if (state.repeatMode === 'one') {
+        nextIndex = state.currentIndex;
+      } else if (state.isShuffle) {
+        nextIndex = getRandomIndex(state.queue.length, state.currentIndex);
+      } else {
+        nextIndex = (state.currentIndex + 1) % state.queue.length;
+        if (nextIndex === 0 && state.repeatMode === 'off') {
+          return { ...state, isPlaying: false, currentIndex: state.queue.length - 1 };
+        }
+      }
+
+      const nextTrack = state.queue[nextIndex];
+      const newHistory = [...state.history];
+      if (state.currentTrack) {
+        newHistory.push(state.currentTrack);
+      }
+
+      return {
+        ...state,
+        currentTrack: nextTrack,
+        currentIndex: nextIndex,
+        history: newHistory,
+        isPlaying: true,
+      };
+    }
+
+    case 'PREVIOUS_TRACK': {
+      if (state.history.length === 0) return state;
+
+      const previousTrack = state.history.pop();
+      if (!previousTrack) return state;
+
+      return {
+        ...state,
+        currentTrack: previousTrack,
+        history: [...state.history],
+        currentIndex: state.queue.findIndex((track) => track.id === previousTrack.id),
+        isPlaying: true,
+      };
+    }
+
+    case 'ADD_TO_QUEUE':
+      return {
+        ...state,
+        queue: [...state.queue, action.payload],
+      };
+
+    case 'REMOVE_FROM_QUEUE': {
+      if (action.payload === state.currentIndex) {
+        return state;
+      }
+      const newQueue = state.queue.filter((_, index) => index !== action.payload);
+      const newIndex =
+        action.payload < state.currentIndex ? state.currentIndex - 1 : state.currentIndex;
+      return {
+        ...state,
+        queue: newQueue,
+        currentIndex: newIndex,
+      };
+    }
+
+    case 'SEEK_TO':
+      return { ...state, currentTime: action.payload };
+
+    default:
+      return state;
+  }
+};
+
+export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [state, dispatch] = useReducer(playerReducer, {
+    currentTrack: null,
+    isPlaying: false,
+    loading: false,
+    volume: 1,
+    isShuffle: false,
+    repeatMode: 'off',
+    playbackSpeed: 1,
+    queue: [],
+    history: [],
+    currentTime: 0,
+    currentIndex: -1,
+    error: null,
+  });
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    // Create audio only once
+    audioRef.current = new Audio();
+    
+    // Cleanup function
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    
+    // Guard clause to prevent errors when no current track
+    if (!audio || !state.currentTrack) return;
+
+    // Configure audio
+    audio.src = state.currentTrack.url;
+    audio.volume = state.volume;
+    audio.playbackRate = state.playbackSpeed;
+    audio.currentTime = state.currentTime;
+
+    // Playback control
+    const playPromise = state.isPlaying 
+      ? audio.play().catch((error) => {
+          console.error('Playback failed:', error);
+          dispatch({ type: 'SET_ERROR', payload: 'Playback error occurred' });
+          dispatch({ type: 'TOGGLE_PLAY' });
+        })
+      : audio.pause();
+
+    // Handle track ended
+    const handleEnded = () => {
+      dispatch({ type: 'NEXT_TRACK' });
+    };
+
+    // Handle time updates
+    const handleTimeUpdate = () => {
+      dispatch({ type: 'UPDATE_TIME', payload: audio.currentTime });
+    };
+
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+
+    // Cleanup
+    return () => {
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+    };
+  }, [
+    state.currentTrack, 
+    state.currentTime, 
+    state.isPlaying, 
+    state.volume, 
+    state.playbackSpeed,
+    dispatch
+  ]);
+
+  return (
+    <PlayerContext.Provider value={{ state, dispatch }}>
+      {children}
+    </PlayerContext.Provider>
+  );
+};
+
+export const usePlayer = () => {
+  const context = useContext(PlayerContext);
+  if (!context) {
+    throw new Error('usePlayer must be used within a PlayerProvider');
+  }
+  return context;
+};
+
+export default PlayerContext;

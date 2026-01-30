@@ -1,0 +1,71 @@
+'use client';
+import React from 'react';
+import { useTheme } from '@/app/context/ThemeContext';
+import { themes} from '@/app/components/theme/Themes';
+
+import { Palette, Sun, Moon } from 'lucide-react';
+
+
+export const ThemeSelector: React.FC = () => {
+  const { isDarkMode , toggleDarkMode } = useTheme();
+
+
+  return (
+    <button
+      onClick={toggleDarkMode}
+      className="p-2 rounded-full hover:bg-secondary/10 transition-colors"
+      title="Toggle Dark Mode"
+    >
+      {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+    </button>
+  );
+};
+
+
+export const xxThemeSelector: React.FC = () => {
+  const { cThemes,theme, setTheme, toggleDarkMode } = useTheme();
+
+  console.log(cThemes);
+
+
+  return (
+    <div className="flex items-center space-x-4">
+      {/* Theme Palette Selector */}
+      <div className="relative group">
+        <button
+          className="p-2 rounded-full hover:bg-secondary/10 transition-colors"
+          title="Select Theme"
+        >
+          <Palette className="h-5 w-5" />
+        </button>
+        <div className="absolute z-50 hidden group-hover:block bg-background border border-gray-300 dark:border-gray-700 rounded-lg shadow-lg p-4 mt-2 w-64">
+          <div className="grid grid-cols-4 gap-2">
+            {cThemes.map((t,i) => (
+              <button
+                key={i}
+                onClick={() => setTheme(t.id)}
+                className={`w-8 h-8 rounded-full transition-all ${
+                  theme?.id === t.id ? 'ring-2 ring-primary' : ''
+                }`}
+                style={{
+                  backgroundColor: t.primary,
+                  backgroundImage: `linear-gradient(45deg, ${t.primary}, ${t.secondary})`,
+                }}
+                title={t.name}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Dark Mode Toggle */}
+      <button
+        onClick={toggleDarkMode}
+        className="p-2 rounded-full hover:bg-secondary/10 transition-colors"
+        title="Toggle Dark Mode"
+      >
+        {theme.dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+      </button>
+    </div>
+  );
+};

@@ -1,0 +1,259 @@
+// app/page.tsx
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { usePlayer } from '@/app/context/PlayerContext';
+import { Play, Share2, Heart, MoreHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
+import { heroSlides, hotArtists, NewsItem, newsStream } from '@/app/lib/api';
+import { Track, Artist} from '@/app/lib/types';
+
+//import { useTheme } from '@/app/context/ThemeContext';
+
+const HeroSlider = () => {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [showControls, setShowControls] = useState<string | null>(null);
+  const { dispatch } = usePlayer();
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + heroSlides.length) % heroSlides.length);
+  };
+
+  useEffect(() => {
+    const timer = setInterval(nextSlide, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="relative h-[500px] w-full overflow-hidden rounded-2xl">
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={currentSlide}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
+          className="relative h-full"
+        >
+          <img
+            src={heroSlides[currentSlide].image}
+            alt={heroSlides[currentSlide].title}
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+          
+          <div className="absolute bottom-0 left-0 p-8 text-white">
+            <h1 className="text-4xl font-bold mb-2">{heroSlides[currentSlide].title}</h1>
+            <p className="text-xl mb-4">{heroSlides[currentSlide].artist}</p>
+            
+            <div className="flex space-x-4">
+              <button
+                onClick={() => dispatch({ type: 'SET_TRACK', payload: heroSlides[currentSlide].track })}
+                className="bg-primary text-white px-6 py-3 rounded-full flex items-center space-x-2 hover:bg-primary/90"
+              >
+                <Play className="w-5 h-5" />
+                <span>Play Now</span>
+              </button>
+              
+              <button className="border border-white/20 px-6 py-3 rounded-full hover:bg-white/10">
+                More Info
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </AnimatePresence>
+
+      <button
+        onClick={prevSlide}
+        className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 p-2 rounded-full hover:bg-black/70"
+      >
+        <ChevronLeft className="w-6 h-6 text-white" />
+      </button>
+
+      <button
+        onClick={nextSlide}
+        className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 p-2 rounded-full hover:bg-black/70"
+      >
+        <ChevronRight className="w-6 h-6 text-white" />
+      </button>
+    </div>
+  );
+};
+
+const ArtistCard = ({ artist }: { artist: Artist }) => {
+  const [showControls, setShowControls] = useState(false);
+
+  return (
+    <motion.div
+      className="relative group"
+      onHoverStart={() => setShowControls(true)}
+      onHoverEnd={() => setShowControls(false)}
+    >
+      <div className="relative w-48 h-48 rounded-full overflow-hidden">
+        <img
+          src={artist.image}
+          alt={artist.name}
+          className="w-full h-full object-cover"
+        />
+        <AnimatePresence>
+          {showControls && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 flex items-center justify-center"
+            >
+              <button className="bg-primary p-4 rounded-full hover:bg-primary/90">
+                <Play className="w-6 h-6 text-white" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+      <h3 className="mt-4 text-center font-semibold">{artist.name}</h3>
+      <p className="text-sm text-center text-secondary">
+  {artist.monthlyListeners !== undefined 
+    ? `${artist.monthlyListeners.toLocaleString()} monthly listeners` 
+    : "No data available"}
+</p>
+    </motion.div>
+  );
+};
+
+const NewsTickerItem = ({ item }: { item: NewsItem }) => {
+  return (
+    <div className="flex-none w-72 p-2">
+      <div className="bg-surface rounded-lg overflow-hidden">
+        <img
+          src={item.image}
+          alt={item.title}
+          className="w-full h-32 object-cover"
+        />
+        <div className="p-4">
+          <span className="text-xs text-primary uppercase">{item.type}</span>
+          <h4 className="font-medium mt-1">{item.title}</h4>
+          <p className="text-sm text-secondary mt-1">{item.date}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+
+export default function LandingPage() {
+ // const { theme, themes,  setTheme } = useTheme();
+
+  const newsTickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const ticker = newsTickerRef.current;
+    if (!ticker) return;
+
+    const scrollNews = () => {
+      if (ticker.scrollLeft + ticker.clientWidth >= ticker.scrollWidth) {
+        ticker.scrollLeft = 0;
+      } else {
+        ticker.scrollLeft += 1;
+      }
+    };
+
+    const interval = setInterval(scrollNews, 30);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="space-y-12">
+  
+
+      {/* Hero Section */}
+      <section>
+        <HeroSlider />
+      </section>
+
+      {/* Hot Artists Section */}
+      <section>
+        <h2 className="text-2xl font-bold mb-6">Hot Artists</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+          {hotArtists.map((artist) => (
+            <ArtistCard key={artist.id} artist={artist} />
+          ))}
+        </div>
+      </section>
+
+      {/* News Ticker */}
+      <section className="relative">
+        <h2 className="text-2xl font-bold mb-6">Latest News & Events</h2>
+        <div
+          ref={newsTickerRef}
+          className="flex overflow-x-hidden scroll-smooth"
+        >
+          <div className="flex animate-scroll">
+            {newsStream.map((item) => (
+              <NewsTickerItem key={item.id} item={item} />
+            ))}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+
+/**
+ function ccxLandingPage() {
+  const newsTickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const ticker = newsTickerRef.current;
+    if (!ticker) return;
+
+    const scrollNews = () => {
+      if (ticker.scrollLeft + ticker.clientWidth >= ticker.scrollWidth) {
+        ticker.scrollLeft = 0;
+      } else {
+        ticker.scrollLeft += 1;
+      }
+    };
+
+    const interval = setInterval(scrollNews, 30);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="space-y-12">
+      <section>
+        <HeroSlider />
+      </section>
+
+      <section>
+        <h2 className="text-2xl font-bold mb-6">Hot Artists</h2>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+          {hotArtists.map((artist) => (
+            <ArtistCard key={artist.id} artist={artist} />
+          ))}
+        </div>
+      </section>
+
+      <section className="relative">
+        <h2 className="text-2xl font-bold mb-6">Latest News & Events</h2>
+        <div
+          ref={newsTickerRef}
+          className="flex overflow-x-hidden scroll-smooth"
+        >
+          <div className="flex animate-scroll">
+            {newsStream.map((item) => (
+              <NewsTickerItem key={item.id} item={item} />
+            ))}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+*/

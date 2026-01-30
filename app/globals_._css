@@ -1,0 +1,164 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+:root {
+  --primary: #007bff;
+  --secondary: #6c757d;
+  --background: #ffffff;
+  --surface: #f8f9fa;
+  --text-primary: #212529;
+  --text-secondary: #495057;
+}
+
+.theme-dark {
+  --primary: #375a7f;
+  --secondary: #444444;
+  --background: #343a40;
+  --surface: #495057;
+  --text-primary: #f8f9fa;
+  --text-secondary: #ced4da;
+}
+
+.theme-custom {
+  --primary: #ff6b6b;
+  --secondary: #ffa502;
+  --background: #f7f1e3;
+  --surface: #dff9fb;
+  --text-primary: #2f3542;
+  --text-secondary: #57606f;
+}
+
+/* Base styles */
+:root {
+  --primary: #3b82f6;
+  --secondary: #6b7280;
+  --background: #ffffff;
+  --foreground: #000000;
+  --accent: blue;
+  --base-color: white;
+  --component-shadow: shadow-md;
+}
+
+/* Themes */
+:root.theme-default-light {
+  --primary: #3b82f6;
+  --secondary: #6b7280;
+  --background: #ffffff;
+  --foreground: #000000;
+  --accent: blue;
+  --base-color: white;
+  --component-shadow: shadow-md;
+}
+
+:root.theme-default-dark {
+  --primary: #60a5fa;
+  --secondary: #9ca3af;
+  --background: #1f2937;
+  --foreground: #ffffff;
+  --accent: indigo;
+  --base-color: black;
+  --component-shadow: shadow-xl;
+}
+
+:root.theme-ocean-breeze {
+  --primary: #2196f3;
+  --secondary: #81d4fa;
+  --background: #e3f2fd;
+  --foreground: #0d47a1;
+  --accent: blue;
+  --base-color: white;
+  --component-shadow: shadow-lg;
+}
+
+:root.theme-forest-green {
+  --primary: #4caf50;
+  --secondary: #81c784;
+  --background: #e8f5e9;
+  --foreground: #1b5e20;
+  --accent: green;
+  --base-color: white;
+  --component-shadow: shadow-md;
+}
+
+:root.theme-sunset-rouge {
+  --primary: #e91e63;
+  --secondary: #f06292;
+  --background: #fce4ec;
+  --foreground: #880e4f;
+  --accent: red;
+  --base-color: white;
+  --component-shadow: shadow-sm;
+}
+
+:root.theme-midnight-purple {
+  --primary: #9c27b0;
+  --secondary: #ba68c8;
+  --background: #f3e5f5;
+  --foreground: #4a148c;
+  --accent: purple;
+  --base-color: white;
+  --component-shadow: shadow-md;
+}
+
+:root.theme-desert-amber {
+  --primary: #ff9800;
+  --secondary: #ffb74d;
+  --background: #fff3e0;
+  --foreground: #e65100;
+  --accent: orange;
+  --base-color: white;
+  --component-shadow: shadow-sm;
+}
+
+:root.theme-deep-night {
+  --primary: #673ab7;
+  --secondary: #9575cd;
+  --background: #212121;
+  --foreground: #ffffff;
+  --accent: indigo;
+  --base-color: black;
+  --component-shadow: shadow-xl;
+}
+
+:root.theme-modern-charcoal {
+  --primary: #607d8b;
+  --secondary: #90a4ae;
+  --background: #eceff1;
+  --foreground: #263238;
+  --accent: blue;
+  --base-color: slate;
+  --component-shadow: shadow-lg;
+}
+
+:root.theme-warm-earth {
+  --primary: #795548;
+  --secondary: #a1887f;
+  --background: #efebe9;
+  --foreground: #3e2723;
+  --accent: orange;
+  --base-color: stone;
+  --component-shadow: shadow-md;
+}
+
+/* Utility styles */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+button {
+  background-color: var(--primary);
+  color: var(--foreground);
+  box-shadow: var(--component-shadow);
+}
+
+a {
+  color: var(--accent);
+}
+
+
+body {
+  background-color: var(--background);
+  color: var(--text-primary);
+}
+

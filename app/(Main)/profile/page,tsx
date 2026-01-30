@@ -1,0 +1,62 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { getPreferences, savePreferences, UserPreferences } from "@/app/lib/preferences";
+
+export default function ProfileSettingsPage() {
+  const [prefs, setPrefs] = useState<UserPreferences | null>(null);
+
+  useEffect(() => {
+    setPrefs(getPreferences());
+  }, []);
+
+  if (!prefs) return null;
+
+  const update = (update: Partial<UserPreferences>) => {
+    const next = { ...prefs, ...update };
+    setPrefs(next);
+    savePreferences(next);
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-6 space-y-8">
+      <h1 className="text-2xl font-bold">Settings</h1>
+
+      {/* Theme */}
+      <div>
+        <h2 className="font-semibold mb-2">Theme</h2>
+        <select
+          value={prefs.theme}
+          onChange={(e) =>
+            update({ theme: e.target.value as UserPreferences["theme"] })
+          }
+          className="border rounded px-3 py-2"
+        >
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </div>
+
+      {/* Notifications */}
+      <div className="flex items-center justify-between">
+        <span>Enable notifications</span>
+        <input
+          type="checkbox"
+          checked={prefs.notifications}
+          onChange={(e) => update({ notifications: e.target.checked })}
+        />
+      </div>
+
+      {/* Compact Mode */}
+      <div className="flex items-center justify-between">
+        <span>Compact UI</span>
+        <input
+          type="checkbox"
+          checked={prefs.compactMode}
+          onChange={(e) => update({ compactMode: e.target.checked })}
+        />
+      </div>
+    </div>
+  );
+}

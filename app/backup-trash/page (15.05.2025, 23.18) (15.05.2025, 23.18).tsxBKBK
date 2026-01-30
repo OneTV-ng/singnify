@@ -1,0 +1,526 @@
+// app/page.tsx
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { usePlayer } from '@/app/context/PlayerContext';
+import { Play, Share2, Heart, MoreHorizontal, ChevronLeft, ChevronRight } from 'lucide-react';
+import { heroSlides, hotArtists, newsItem, newsStream } from '@/app/lib/api';
+import { Track, Artist, NewsItem } from '@/app/lib/types';
+
+  console.log(heroSlides, hotArtists, newsItem, newsStream );
+
+interface SliderWrapperProps {
+  title: string;
+  children: React.ReactNode;
+  itemCount: number;
+}
+
+interface ArtistCardProps {
+  artist: Artist;
+}
+
+
+  // Slider wrapper component to handle navigation and scrolling
+  const SliderWrapper: React.FC<SliderWrapperProps> = ({ title, children, itemCount }) => {
+    const sliderRef = useRef<HTMLDivElement>(null);
+    const [showLeftArrow, setShowLeftArrow] = useState<boolean>(false);
+    const [showRightArrow, setShowRightArrow] = useState<boolean>(true);
+  
+    const scroll = (direction: 'left' | 'right'): void => {
+      if (sliderRef.current) {
+        const { scrollLeft, clientWidth } = sliderRef.current;
+        const scrollTo = direction === 'left' 
+          ? scrollLeft - clientWidth * 0.75 
+          : scrollLeft + clientWidth * 0.75;
+        
+        sliderRef.current.scrollTo({
+          left: scrollTo,
+          behavior: 'smooth'
+        });
+      }
+    };
+  
+    const handleScroll = (): void => {
+      if (sliderRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = sliderRef.current;
+        setShowLeftArrow(scrollLeft > 0);
+        setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 5);
+      }
+    };
+  
+    return (
+      <div className="w-full mb-4">
+        <div className="flex justify-between items-center mb-2">
+          <h2 className="text-lg font-bold text-white">{title}</h2>
+          <div className="flex space-x-1">
+            <button 
+              onClick={() => scroll('left')} 
+              className={`p-1 rounded-full bg-gray-800 hover:bg-gray-700 transition ${!showLeftArrow ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={!showLeftArrow}
+            >
+              <ChevronLeft size={16} className="text-white" />
+            </button>
+            <button 
+              onClick={() => scroll('right')} 
+              className={`p-1 rounded-full bg-gray-800 hover:bg-gray-700 transition ${!showRightArrow ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={!showRightArrow}
+            >
+              <ChevronRight size={16} className="text-white" />
+            </button>
+          </div>
+        </div>
+        <div 
+          ref={sliderRef} 
+          className="flex overflow-x-auto scrollbar-hide pb-2 gap-2" 
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          onScroll={handleScroll}
+        >
+          {children}
+        </div>
+      </div>
+    );
+  };
+  
+
+const HeroSlider = () => {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [showControls, setShowControls] = useState<string | null>(null);
+  const { dispatch } = usePlayer();
+
+
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + heroSlides.length) % heroSlides.length);
+  };
+
+  useEffect(() => {
+    // Changed interval to 5000ms (5 seconds) for better user experience
+    const timer = setInterval(nextSlide, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div 
+      className="relative h-[300px] w-full overflow-hidden rounded-2xl"
+      onMouseEnter={() => setShowControls('slider')}
+      onMouseLeave={() => setShowControls(null)}
+    >
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={currentSlide}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.5 }}
+          className="relative h-full"
+        >
+          <img
+            src={heroSlides[currentSlide].image}
+            alt={heroSlides[currentSlide].title}
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+          
+          <div className="absolute bottom-0 left-0 p-8 text-white">
+            <h1 className="text-4xl font-bold mb-2">{heroSlides[currentSlide].title}</h1>
+            <p className="text-xl mb-4">{heroSlides[currentSlide].artist}</p>
+            
+            <div className="flex space-x-4">
+              <button
+                onClick={() => dispatch({ type: 'SET_TRACK', payload: heroSlides[currentSlide].track })}
+                className="bg-primary text-white px-6 py-3 rounded-full flex items-center space-x-2 hover:bg-primary/90"
+              >
+                <Play className="w-5 h-5" />
+                <span>Play Now</span>
+              </button>
+              
+              <button className="border border-white/20 px-6 py-3 rounded-full hover:bg-white/10">
+                More Info
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Slide indicators */}
+      <div className="absolute bottom-4 right-4 flex space-x-2">
+        {heroSlides.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => setCurrentSlide(index)}
+            className={`w-3 h-3 rounded-full ${
+              currentSlide === index ? 'bg-primary' : 'bg-white/50'
+            }`}
+          />
+        ))}
+      </div>
+
+      <AnimatePresence>
+        {(showControls === 'slider' || showControls === 'always') && (
+          <>
+            <motion.button
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={prevSlide}
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 p-2 rounded-full hover:bg-black/70"
+            >
+              <ChevronLeft className="w-6 h-6 text-white" />
+            </motion.button>
+
+            <motion.button
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={nextSlide}
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 p-2 rounded-full hover:bg-black/70"
+            >
+              <ChevronRight className="w-6 h-6 text-white" />
+            </motion.button>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+const AArtistCard = ({ artist }: { artist: Artist }) => {
+  const [showControls, setShowControls] = useState(false);
+
+  return (
+    <motion.div
+      className="relative group flex-shrink-0 w-48"
+      onHoverStart={() => setShowControls(true)}
+      onHoverEnd={() => setShowControls(false)}
+    >
+      <div className="relative w-20 h-20 mx-auto rounded-full overflow-hidden">
+        <img
+          src={artist.image}
+          alt={artist.name}
+          className="w-full h-full object-cover"
+        />
+        <AnimatePresence>
+          {showControls && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 flex items-center justify-center"
+            >
+              <button className="bg-primary p-4 rounded-full hover:bg-primary/90">
+                <Play className="w-6 h-6 text-white" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+      <h5 className="mt-4 text-center font-semibold">{artist.name}</h5>
+      <p className="text-sm text-center text-secondary">
+        {artist.monthlyListeners !== undefined 
+          ? `${artist.monthlyListeners.toLocaleString()} monthly listeners` 
+          : "No data available"}
+      </p>
+    </motion.div>
+  );
+};
+
+const ArtistCard = ({ artist }: { artist: Artist }) => {
+  return (
+    <div className="flex-shrink-0 w-20 md:w-24 group cursor-pointer">
+      <div className="relative">
+        <div className="w-full aspect-square rounded-full overflow-hidden bg-gray-800">
+          <img src={artist.image} alt={artist.name} className="w-full h-full object-cover" />
+        </div>
+        <div className="absolute bottom-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button className="bg-green-500 rounded-full p-1 shadow-lg">
+            <Play size={12} className="text-black" />
+          </button>
+        </div>
+      </div>
+      <div className="mt-1 text-center">
+        <h3 className="font-semibold text-white text-xs truncate">{artist.name}</h3>
+        <p className="text-xs text-gray-400">Artist • {artist.followers}</p>
+      </div>
+    </div>
+  );
+};
+
+
+const TrandingCard = ({ artist }: { artist: Artist }) => {
+  const [showControls, setShowControls] = useState(false);
+
+  return (
+    <motion.div
+      className="relative group flex-shrink-0 w-48"
+      onHoverStart={() => setShowControls(true)}
+      onHoverEnd={() => setShowControls(false)}
+    >
+      <div className="relative w-10 h-10 mx-auto rounded-md overflow-hidden">
+        <img
+          src={artist.image}
+          alt={artist.name}
+          className="w-full h-full object-cover"
+        />
+        <AnimatePresence>
+          {showControls && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 flex items-center justify-center"
+            >
+              <button className="bg-primary p-4 rounded-full hover:bg-primary/90">
+                <Play className="w-6 h-6 text-white" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+      <h3 className="mt-4 text-center font-semibold">{artist.name}</h3>
+      <p className="text-sm text-center text-secondary">
+        {artist.monthlyListeners !== undefined 
+          ? `${artist.monthlyListeners.toLocaleString()} monthly listeners` 
+          : "No data available"}
+      </p>
+    </motion.div>
+  );
+};
+
+
+// Horizontal scrollable list for artists
+const ArtistsScrollList = () => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(true);
+
+  const scroll = (direction: 'left' | 'right') => {
+    if (scrollRef.current) {
+      const scrollAmount = 300;
+      scrollRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  const handleScroll = () => {
+    if (scrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+      setShowLeftArrow(scrollLeft > 0);
+      setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 10);
+    }
+  };
+
+  useEffect(() => {
+    const ref = scrollRef.current;
+    if (ref) {
+      ref.addEventListener('scroll', handleScroll);
+      // Check initially
+      handleScroll();
+      return () => ref.removeEventListener('scroll', handleScroll);
+    }
+  }, []);
+
+  return (
+    <div className="relative">
+
+
+      <h3 className="text-2xl font-bold mb-6">Hot Artists</h3>
+      
+      <div className="relative">
+        {showLeftArrow && (
+          <button 
+            onClick={() => scroll('left')} 
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-black/50 p-2 rounded-full hover:bg-black/70"
+          >
+            <ChevronLeft className="w-6 h-6 text-white" />
+          </button>
+        )}
+        
+        <div 
+          ref={scrollRef}
+          className="flex overflow-x-auto no-scrollbar gap-6 py-4 px-2"
+          onScroll={handleScroll}
+        >
+          {hotArtists.map((artist) => (
+            <ArtistCard key={artist.id} artist={artist} />
+          ))}
+        </div>
+        
+        {showRightArrow && (
+          <button 
+            onClick={() => scroll('right')} 
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-black/50 p-2 rounded-full hover:bg-black/70"
+          >
+            <ChevronRight className="w-6 h-6 text-white" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+
+
+// Horizontal scrollable list for artists
+const TrendingScrollList = () => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(true);
+
+  const scroll = (direction: 'left' | 'right') => {
+    if (scrollRef.current) {
+      const scrollAmount = 300;
+      scrollRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  const handleScroll = () => {
+    if (scrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+      setShowLeftArrow(scrollLeft > 0);
+      setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 10);
+    }
+  };
+
+  useEffect(() => {
+    const ref = scrollRef.current;
+    if (ref) {
+      ref.addEventListener('scroll', handleScroll);
+      // Check initially
+      handleScroll();
+      return () => ref.removeEventListener('scroll', handleScroll);
+    }
+  }, []);
+
+  return (
+    <div className="relative">
+      <h3 className="text-2xl font-bold mb-6">Trending Songs</h3>
+      
+      <div className="relative">
+        {showLeftArrow && (
+          <button 
+            onClick={() => scroll('left')} 
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-black/50 p-2 rounded-full hover:bg-black/70"
+          >
+            <ChevronLeft className="w-6 h-6 text-white" />
+          </button>
+        )}
+        
+        <div 
+          ref={scrollRef}
+          className="flex overflow-x-auto no-scrollbar gap-6 py-4 px-2"
+          onScroll={handleScroll}
+        >
+          {hotArtists.map((artist) => (
+            <TrandingCard key={artist.id} artist={artist} />
+          ))}
+        </div>
+        
+        {showRightArrow && (
+          <button 
+            onClick={() => scroll('right')} 
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-black/50 p-2 rounded-full hover:bg-black/70"
+          >
+            <ChevronRight className="w-6 h-6 text-white" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+
+const NewsTickerItem = ({ item }: { item: NewsItem }) => {
+  return (
+    <div className="flex-none w-72 p-2">
+      <div className="bg-surface rounded-lg overflow-hidden">
+        <img
+          src={item.image}
+          alt={item.title}
+          className="w-full h-32 object-cover"
+        />
+        <div className="p-4">
+          <span className="text-xs text-primary uppercase">{item.type}</span>
+          <h4 className="font-medium mt-1">{item.title}</h4>
+          <p className="text-sm text-secondary mt-1">{item.date}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default function LandingPage() {
+  const newsTickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const ticker = newsTickerRef.current;
+    if (!ticker) return;
+
+    const scrollNews = () => {
+      if (ticker.scrollLeft + ticker.clientWidth >= ticker.scrollWidth) {
+        ticker.scrollLeft = 0;
+      } else {
+        ticker.scrollLeft += 1;
+      }
+    };
+
+    const interval = setInterval(scrollNews, 30);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="space-y-12">
+      {/* Hero Section */}
+      <section>
+        <HeroSlider />
+      </section>
+
+      <section>
+      <h3 className="text-xl font-bold text-white mb-4">Our Hottest Music</h3>
+
+{/* Artists Slider */}
+<SliderWrapper title="Top Artists" itemCount={hotArtists.length}>
+  {hotArtists.map(artist => (
+    <ArtistCard key={artist.id} artist={artist} />
+  ))}
+</SliderWrapper>
+      </section>
+
+      {/* Hot Artists Section - Now using horizontal scrollable list */}
+      <section>
+        <ArtistsScrollList />
+      </section>
+
+     
+      {/* Hot Trending  Section - Now using horizontal scrollable list */}
+      <section>
+        < TrendingScrollList />
+        </section>
+
+
+      {/* News Ticker */}
+      <section className="relative">
+        <h2 className="text-2xl font-bold mb-6">Latest News & Events</h2>
+        <div
+          ref={newsTickerRef}
+          className="flex overflow-x-hidden scroll-smooth"
+        >
+          <div className="flex animate-scroll">
+            {newsStream.map((item) => (
+              <NewsTickerItem key={item.id} item={item} />
+            ))}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}

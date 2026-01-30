@@ -1,0 +1,265 @@
+//@/app/components/Player.tsx
+
+import React, { useRef, useEffect, useState } from 'react';
+import { 
+  Play, Pause, SkipForward, SkipBack, 
+  Shuffle, Repeat, Volume2, VolumeX, Loader ,Minimize2 ,Maximize2
+} from 'lucide-react';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import { usePlayer } from '@/app/context/PlayerContext';
+import PlayerButton from '@/app/components/PlayerButton'
+
+
+export default function Player() {
+
+const [playTime , setPlayTime] = useState (0);
+  const { state, dispatch, audioRef } = usePlayer();
+  const { queue, currentIndex, isPlaying, isFullScreen, repeatMode,isShuffle, currentTrack, playbackSpeed, volume, currentTime } = state;
+
+  const [progress, setProgress] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+    
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+
+
+
+
+  
+  const toggleFullscreen = () => {
+    dispatch({ 
+      type: 'TOGGLE_FULLSCREEN',
+      payload: !isFullScreen 
+    });
+  };
+
+  const [repeat, setRepeat]= useState('');
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = playbackSpeed;
+      setIsFullscreen(state.isFullScreen);
+
+      audioRef.current.volume = volume;
+      isPlaying ? audioRef.current.play() : audioRef.current.pause();   
+       setRepeat(repeatMode !== 'off' ? (repeatMode === 'one' ? '1' : '') : '');
+
+    }
+
+
+  }, [isPlaying, playbackSpeed, repeatMode, volume, currentIndex]);
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current && audioRef.current.duration > 0) {
+
+      setPlayTime(audioRef.current.currentTime);
+      setProgress((audioRef.current.currentTime / audioRef.current.duration) * 100);
+    }
+  };
+
+  const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newProgress = parseFloat(e.target.value);
+    setProgress(newProgress);
+    if (audioRef.current) {
+      
+      audioRef.current.currentTime = (newProgress / 100) * audioRef.current.duration;
+    }
+  };
+
+  const handleEnded = () => {
+    if (repeatMode === "one") {
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play();
+      }
+    } else if (repeatMode === "all") {
+      dispatch({ type: "NEXT_TRACK" });
+    } else {
+      dispatch({ type: "TOGGLE_PLAY" });
+    }
+  };
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVolume = parseFloat(e.target.value);
+    dispatch({ type: "SET_VOLUME", payload: newVolume });
+  };
+
+  const toggleMute = () => {
+    const newVolume = volume > 0 ? 0 : 0.5; // Default unmute to 50% volume
+    dispatch({ type: "SET_VOLUME", payload: newVolume });
+  };
+
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div 
+    className={`
+      fixed bottom-0 left-0 right-0 
+      bg-surface/80 backdrop-blur-md 
+      border-t z-30 border-secondary/20 
+      px-4 
+      ${isFullScreen ? 'h-screen' : 'h-24'} 
+      md:pb-0 pb-20 // Add bottom padding for mobile
+    `}
+  >
+     {queue.length > 0 && (
+        <>
+          <audio
+            ref={audioRef}
+            src={currentTrack?.url}
+            onTimeUpdate={handleTimeUpdate}
+            onEnded={handleEnded}
+            onLoadStart={() => setIsLoading(true)}
+            onLoadedData={() => setIsLoading(false)}
+          />
+
+
+         
+          
+          <div className="max-w-screen-2xl mx-auto h-full flex items-center justify-between">
+          {/* Track Info */}
+            <div className="flex items-center space-x-4 w-1/4">
+              <img
+                src={currentTrack?.image}
+                alt={currentTrack?.track_name}
+                className="h-14 w-14 rounded-md"
+              />
+              <div>
+                <h4 className="font-medium">{currentTrack?.track_name || "Unknown Track"}</h4>
+                <p className="text-sm text-secondary">{currentTrack?.artist?.name || "Unknown Artist"}</p>
+              </div>
+            </div>
+
+            {/* Player Controls */}
+            <div className="flex flex-col items-center w-2/4">
+              <div className="flex items-center space-x-6">
+                  <PlayerButton
+                            onClick={() =>{ 
+                              dispatch({type: 'TOGGLE_SHUFFLE' });
+                               console.log("clickersssss");
+                            }}
+                            className={`p-2 rounded-full hover:bg-secondary/10 ${isShuffle ? 'text-primary' : ''}`}
+                          
+                         icon={Shuffle}
+                          />
+                <PlayerButton
+                  onClick={() => dispatch({ type: 'PREVIOUS_TRACK' })}
+                  icon={SkipBack}
+                />
+                <button
+                  onClick={() => dispatch({ type: isPlaying ? "TOGGLE_PLAY" : "PLAY" })}
+                  className="p-3 rounded-full bg-purple-900 text-white hover:bg-opacity-80 relative"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <Loader className="h-6 w-6 animate-spin" />
+                  ) : isPlaying ? (
+                    <Pause className="h-6 w-6" />
+                  ) : (
+                    <Play className="h-6 w-6" />
+                  )}
+                </button>
+                <PlayerButton
+                  onClick={() => dispatch({ type: 'NEXT_TRACK' })}
+                  icon={SkipForward}
+                />
+                  <button
+              onClick={() =>{
+                dispatch({
+                  type: 'SET_REPEAT_MODE',
+                  payload: repeatMode === 'off' ? 'all' : repeatMode === 'all' ? 'one' : 'off',
+                });
+              
+
+}
+              }
+              className={`p-2 rounded-full hover:bg-secondary/10 ${repeatMode !== 'off' ? 'text-white bg-purple-900 hover:bg-purple-700 ' : 'hover:bg-purple-500 hover:text-purple-700'}`}
+            >      <PlayerButton
+            onClick={toggleFullscreen}
+            icon={isFullScreen ? Minimize2 : Maximize2}
+            className="absolute top-4 right-4 z-50"
+          />
+           <div className="flex items-center space-x-1">
+  <Repeat className="h-5 w-5" />
+<span className="relative text-xs top-[-0.5em]">{repeat}</span>
+</div>
+            </button>
+
+                <Select
+                  value={String(playbackSpeed)}
+                  onValueChange={(value) =>
+                    dispatch({ type: 'SET_PLAYBACK_SPEED', payload: parseFloat(value) as 1 | 1.5 | 2 })
+                  }
+                >
+                  <SelectTrigger className="w-20">
+                    <SelectValue placeholder="Speed" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1x</SelectItem>
+                    <SelectItem value="1.5">1.5x</SelectItem>
+                    <SelectItem value="2">2x</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="w-full mt-2 px-4 flex items-center space-x-2">
+                <span className="text-xs text-secondary font-mono">{formatTime(playTime)}</span>
+                <div className="flex-1 relative">
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 left-0 h-1 bg-purple-900 rounded-full"
+                    style={{ width: `${progress}%` }}
+                  />
+                  <div className="w-full h-1 bg-secondary/20 rounded-full" />
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={progress}
+                    onChange={handleProgressChange}
+                    className="absolute inset-0 w-full opacity-0 cursor-pointer"
+                  />
+                </div>
+                <span className="text-xs text-secondary font-mono">{formatTime(audioRef.current?.duration || 0)}</span>
+              </div>
+            </div>
+          
+            {/* Volume Controls */}
+            <div className="flex items-center space-x-4 w-1/4 justify-end">
+
+              <PlayerButton
+                onClick={toggleMute}
+                icon={volume === 0 ? VolumeX : Volume2}
+              />
+              <div className="w-32 relative">
+                <div
+                  className="absolute top-1/2 -translate-y-1/2 left-0 h-1 bg-purple-900 rounded-full"
+                  style={{ width: `${volume * 100}%` }}
+                />
+                <div className="w-full h-1 bg-secondary/20 rounded-full" />
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={volume}
+                  onChange={handleVolumeChange}
+                  className="absolute inset-0 w-full opacity-0 cursor-pointer"
+                />
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,48 @@
+{
+  "name": "singnify-api-client",
+  "version": "1.0.0",
+  "description": "Comprehensive TypeScript client for the Singnify backend API v2",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\""
+  },
+  "keywords": [
+    "singnify",
+    "api",
+    "client",
+    "music",
+    "typescript",
+    "axios"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.5",
+    "events": "^3.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "@typescript-eslint/eslint-plugin": "^6.19.1",
+    "@typescript-eslint/parser": "^6.19.1",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/singnify-api-client.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/singnify-api-client/issues"
+  },
+  "homepage": "https://github.com/yourusername/singnify-api-client#readme",
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
